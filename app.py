@@ -1,7 +1,9 @@
 import streamlit as st
 import pickle
 import numpy as np
+# >>> TARUH DI PALING ATAS FILE, sebelum import tensorflow <<<
 import os
+os.environ["KERAS_BACKEND"] = "tensorflow"
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 import tensorflow as tf
 from tensorflow.keras.models import load_model, Model
