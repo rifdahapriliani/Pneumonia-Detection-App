@@ -1,10 +1,10 @@
-streamlit
-numpy
-pandas
-pillow
-matplotlib
-seaborn
-scikit-learn
-tensorflow-cpu==2.15.0
-keras==2.15.0
-fpdf
+streamlit==1.48.1
+numpy==2.3.2
+pandas==2.3.2
+pillow==11.3.0
+matplotlib==3.10.5
+seaborn==0.13.2
+scikit-learn              # biarkan tanpa versi, Streamlit akan pilih 1.7.x untuk Py3.13
+tensorflow-cpu==2.20.0    # atau pakai: tensorflow==2.20.0
+h5py>=3.11                 # untuk load file .h5
+fpdf==1.7.2
