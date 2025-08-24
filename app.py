@@ -1,18 +1,21 @@
 import streamlit as st
 import pickle
 import numpy as np
+import os
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
 import tensorflow as tf
 from tensorflow.keras.models import load_model, Model
 from PIL import Image, ImageEnhance
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns  # optional
-import keras.backend as K  # optional
+from tensorflow.keras import backend as K
 import re
 import io, time
 from datetime import datetime
 import os
 from huggingface_hub import hf_hub_download
+
 
 # ================== Hugging Face config ==================
 HF_REPO_ID = "Rifdah/pneumonia-cnn"   # ganti jika repo berbeda
