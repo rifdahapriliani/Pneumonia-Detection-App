@@ -6,8 +6,8 @@ from tensorflow.keras.models import load_model, Model
 from PIL import Image, ImageEnhance
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
-import keras.backend as K
+import seaborn as sns  # optional
+import keras.backend as K  # optional
 import re
 import io, time
 from datetime import datetime
@@ -448,7 +448,7 @@ SHOW_LOGO = False
 if SHOW_LOGO:
     st.sidebar.image("images/untad.png", width=120)
 else:
-    st.sidebar.markdown("""<div class="brand-badge">🩺</div>""", unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="brand-badge">🩺</div>', unsafe_allow_html=True)
 
 st.sidebar.markdown("<h1 class='sidebar-title'>🔬 Dashboard PCA-LDA</h1>", unsafe_allow_html=True)
 st.sidebar.markdown("---")
@@ -466,29 +466,29 @@ if page == "🏠 Home":
 
     card_start()
     st.subheader("🔬 Apa itu PCA (Principal Component Analysis)?")
-    st.markdown("""
+    st.markdown('''
     **Principal Component Analysis (PCA)** adalah metode statistik yang digunakan untuk **mengurangi dimensi data** tanpa banyak kehilangan informasi.
     Dalam diagnosis pneumonia:
     - **PCA membantu mengekstraksi fitur utama** dari citra rontgen paru-paru.
     - **Menghilangkan noise atau informasi yang tidak relevan**, sehingga model lebih akurat dan cepat.
     - **Hasil reduksi PCA** digunakan sebagai input untuk model klasifikasi, seperti LDA atau CNN.
-    """)
+    ''')
     card_end()
 
     card_start()
     st.subheader("📊 Apa itu LDA (Linear Discriminant Analysis)?")
-    st.markdown("""
+    st.markdown('''
     **Linear Discriminant Analysis (LDA)** adalah metode klasifikasi yang mencari **kombinasi terbaik dari fitur-fitur** agar dapat membedakan antara kelas dengan lebih efektif.
     Dalam kasus ini:
     - LDA membantu dalam **klasifikasi pasien Normal vs Pneumonia**.
     - LDA bekerja setelah PCA, **menggunakan fitur utama dari PCA** untuk meningkatkan akurasi prediksi.
     - LDA memastikan bahwa fitur yang digunakan memberikan informasi yang relevan bagi klasifikasi penyakit.
-    """)
+    ''')
     card_end()
 
     card_start()
     st.subheader("📋 Langkah-langkah PCA-LDA dalam Diagnosis Pneumonia:")
-    st.markdown("""
+    st.markdown('''
     1️⃣ **Preprocessing Data**
        - Menghilangkan noise dan menyesuaikan skala citra rontgen.
 
@@ -503,14 +503,14 @@ if page == "🏠 Home":
 
     5️⃣ **Evaluasi Model**
        - Mengukur akurasi model menggunakan confusion matrix, ROC-AUC, dan teknik cross-validation.
-    """)
+    ''')
     st.markdown("---")
     st.subheader("📈 Keunggulan PCA-LDA dalam Diagnosis Pneumonia")
-    st.markdown("""
+    st.markdown('''
     - **Meningkatkan Akurasi**: PCA-LDA menghilangkan informasi tidak relevan dan fokus pada pola penting.
     - **Mengurangi Dimensi Data**: Membantu model bekerja lebih cepat dan efisien.
     - **Mendeteksi Pneumonia dengan Lebih Baik**: Menggunakan kombinasi PCA dan LDA membantu membedakan pasien normal dan yang terkena pneumonia.
-    """)
+    ''')
     card_end()
 
     if st.button("🔙 Kembali ke Halaman Awal"):
@@ -842,34 +842,34 @@ elif page == "💡 Tentang Pneumonia":
     hero("💡 Informasi tentang Pneumonia", "Ringkasan penyebab, gejala, faktor risiko, dan referensi.")
 
     card_start()
-    st.markdown("""
+    st.markdown('''
     Pneumonia adalah infeksi yang menyebabkan peradangan pada kantung udara di satu atau kedua paru-paru.
     Kantung udara ini dapat terisi cairan atau nanah, sehingga menyebabkan batuk berdahak, demam, menggigil, dan kesulitan bernapas.
-    """)
+    ''')
     st.subheader("🔬 Penyebab Pneumonia")
-    st.markdown("""
+    st.markdown('''
     Pneumonia dapat disebabkan oleh berbagai mikroorganisme, antara lain:
     - **Bakteri**: Streptococcus pneumoniae adalah penyebab utama Pneumonia bakteri.
     - **Virus**: Termasuk virus flu (influenza) dan COVID-19.
     - **Jamur**: Lebih sering menyerang orang dengan sistem kekebalan tubuh lemah.
     - **Parasit**: Infeksi dari parasit tertentu yang menyerang paru-paru.
-    """)
+    ''')
     st.subheader("📌 Ciri-ciri & Gejala Pneumonia")
-    st.markdown("""
+    st.markdown('''
     - 🔹 Batuk berdahak atau kering
     - 🔹 Demam tinggi dan menggigil
     - 🔹 Nyeri dada saat bernapas atau batuk
     - 🔹 Sesak napas atau napas cepat
     - 🔹 Lemas dan mudah lelah
     - 🔹 Sakit kepala dan nyeri otot
-    """)
+    ''')
     st.subheader("⚠️ Faktor Risiko Pneumonia")
-    st.markdown("""
+    st.markdown('''
     - **Usia**: Bayi di bawah 2 tahun dan lansia di atas 65 tahun lebih rentan.
     - **Sistem imun lemah**: Penderita HIV/AIDS, kanker, atau diabetes.
     - **Perokok aktif & pasif**: Paparan asap rokok merusak sistem pernapasan.
     - **Penyakit kronis**: Seperti asma, penyakit paru obstruktif kronis (PPOK), dan gagal jantung.
-    """)
+    ''')
     st.subheader("📌 Jenis Pneumonia Berdasarkan Penyebabnya")
     pneumonia_types = {
         "1️⃣ Pneumonia Bakteri": "Disebabkan oleh bakteri seperti Streptococcus pneumoniae.",
@@ -892,14 +892,14 @@ elif page == "💡 Tentang Pneumonia":
 
     st.markdown("---")
     st.subheader("📚 Sumber Informasi")
-    st.markdown("""
+    st.markdown('''
 - Kemenkes RI – **Panduan Nasional Pencegahan dan Pengendalian Pneumonia 2023–2030**  
   📄 https://p2p.kemkes.go.id/wp-content/uploads/2023/12/NAPPD_2023-2030-compressed.pdf
 - World Health Organization (WHO) – Pneumonia Overview  
   🌐 https://www.who.int/health-topics/pneumonia
 - CDC – Clinical Overview of Pneumonia  
   🌐 https://www.cdc.gov/pneumonia/
-""")
+''')
     st.caption("Catatan: Informasi di atas bersifat edukatif dan tidak menggantikan diagnosis dokter.")
     card_end()
 
@@ -914,27 +914,27 @@ elif page == "💊 Pengobatan":
 
     card_start()
     st.subheader("🩺 Saran Pengobatan:")
-    st.markdown("""
+    st.markdown('''
     - Menggunakan antibiotik sesuai resep dokter
     - Minum banyak cairan dan istirahat yang cukup
     - Gunakan oksigen jika mengalami kesulitan bernapas
     - Rawat inap di rumah sakit untuk kasus yang parah
-    """)
+    ''')
     st.subheader("🛡️ Pencegahan Pneumonia:")
-    st.markdown("""
+    st.markdown('''
     - Vaksinasi pneumonia dan influenza
     - Menjaga kebersihan tangan
     - Menghindari asap rokok
     - Menjaga daya tahan tubuh dengan pola hidup sehat
-    """)
+    ''')
     st.markdown("---")
     st.subheader("📚 Sumber Informasi")
-    st.markdown("""
+    st.markdown('''
 - Kemenkes RI – **Panduan Nasional Pencegahan dan Pengendalian Pneumonia 2023–2030**  
   📄 https://p2p.kemkes.go.id/wp-content/uploads/2023/12/NAPPD_2023-2030-compressed.pdf
 - WHO & CDC guideline ringkas pencegahan pneumonia.  
   🌐 https://www.who.int/health-topics/pneumonia • https://www.cdc.gov/pneumonia/
-""")
+''')
     card_end()
 
     if st.button("🔙 Kembali ke Dashboard"):
@@ -1052,13 +1052,13 @@ elif page == "👨‍⚕️ Konsultasi & Pelayanan Kesehatan":
     ]
 
     for dokter in dokter_list:
-        st.markdown(f"""
+        st.markdown(f'''
         <div style="border: 1px solid #ddd; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
             <p style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">🩺 {dokter['nama']}</p>
             <p style="font-size: 16px; margin: 5px 0;">📍 <b>Alamat:</b> {dokter['alamat']}</p>
             <p style="font-size: 16px; margin: 5px 0;">📞 <b>Kontak:</b> {dokter['kontak']}</p>
         </div>
-        """, unsafe_allow_html=True)
+        ''', unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -1071,14 +1071,14 @@ elif page == "👨‍⚕️ Konsultasi & Pelayanan Kesehatan":
 elif page == "🧪 Tentang Model":
     hero("🧪 Tentang Model", "Detail ringkas model, data latih, metrik, dan keterbatasan.")
     card_start()
-    st.markdown("""
+    st.markdown('''
 **Arsitektur:** CNN (input 224×224), PCA untuk reduksi fitur, LDA untuk klasifikasi tambahan.  
 **Ekstraksi Fitur:** Mengambil vektor fitur dari layer sebelum output (Flatten/GAP), lalu diproyeksikan oleh PCA dan dinilai oleh LDA.  
 **Data latih/validasi:** (lengkapi sesuai dataset Anda: jumlah gambar, sumber, proporsi train/val).  
 **Metrik (contoh):** Akurasi 0.93 • Precision 0.92 • Recall 0.94 • ROC-AUC 0.96.  
 **Keterbatasan:** Bukan alat medis; kualitas gambar, artefak, komorbid, dan domain-shift dapat menurunkan akurasi.  
 **Keamanan data:** Gambar yang diunggah dipakai untuk prediksi dalam sesi ini saja. Hasil bersifat edukatif dan bukan diagnosis final.
-""")
+''')
     card_end()
 
 # ====== Privasi (footer singkat) ======
