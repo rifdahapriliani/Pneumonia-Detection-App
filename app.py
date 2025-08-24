@@ -1,3 +1,4 @@
+%%writefile app.py
 import streamlit as st
 import pickle
 import numpy as np
@@ -11,23 +12,6 @@ import keras.backend as K
 import re
 import io, time
 from datetime import datetime
-import os
-from huggingface_hub import hf_hub_download
-
-HF_REPO_ID = "Rifdah/pneumonia-cnn"  
-HF_FILENAME = "cnn_model.h5"
-LOCAL_MODEL_PATH = "cnn_model.h5"
-
-def ensure_cnn_model_local():
-    """Unduh cnn_model.h5 dari Hugging Face kalau belum ada di folder kerja."""
-    if not os.path.exists(LOCAL_MODEL_PATH):
-        with st.spinner("📥 Mengunduh model CNN..."):
-            hf_hub_download(
-                repo_id=HF_REPO_ID,
-                filename=HF_FILENAME,
-                local_dir=".",                 # simpan di folder kerja
-                local_dir_use_symlinks=False   # pastikan file fisik dibuat
-            )
 
 # ================== Konfigurasi Halaman ==================
 st.set_page_config(page_title="Website Deteksi Pneumonia", layout="wide")
@@ -351,38 +335,6 @@ def overlay_heatmap(pil_img, heatmap, alpha=0.35, cmap_name='jet'):
     colored_img = Image.fromarray(colored).resize(pil_img.size)
     return Image.blend(pil_img.convert("RGB"), colored_img.convert("RGB"), alpha=alpha)
 
-# ===== Placeholder extractor (akan diisi setelah model dimuat)
-feature_extractor = None
-
-def get_vec_for_pca(image_array, pca):
-    """
-    Pilih sumber fitur yang dimensinya sama dengan PCA yang sudah dilatih:
-    1) coba raw image yang di-flatten
-    2) kalau tidak cocok, pakai fitur dari layer penultimate CNN
-    """
-    n_in = getattr(pca, "n_features_in_", None)
-
-    raw_vec = image_array.reshape(1, -1)
-    if n_in == raw_vec.shape[1]:
-        return raw_vec  # PCA dilatih pakai raw image flatten
-
-    # fitur dari penultimate layer
-    global feature_extractor
-    if feature_extractor is None:
-        feature_extractor = build_feature_extractor(cnn_model)
-
-    cnn_feat = feature_extractor.predict(image_array, verbose=0).reshape(1, -1)
-    if n_in == cnn_feat.shape[1]:
-        return cnn_feat  # PCA dilatih pakai fitur CNN
-
-    # kalau tetap tidak cocok, tampilkan pesan yang jelas
-    st.error(
-        f"Dimensi fitur PCA yang dilatih ({n_in}) tidak cocok dengan kandidat input "
-        f"(raw={raw_vec.shape[1]}, penultimate={cnn_feat.shape[1]}). "
-        "Pastikan pca_model.pkl/lda_model.pkl dilatih dari sumber fitur yang sama."
-    )
-    raise ValueError("PCA feature mismatch")
-
 # ---- Util: Ekstraktor fitur dari CNN untuk PCA-LDA ----
 def build_feature_extractor(model):
     # coba nama layer umum
@@ -457,14 +409,12 @@ def load_all_models():
         pca_obj = pickle.load(pca_file)
     with open("lda_model.pkl", "rb") as lda_file:
         lda_obj = pickle.load(lda_file)
-
-    ensure_cnn_model_local()
-    cnn_obj = load_model(LOCAL_MODEL_PATH, compile=False)  # aman untuk Keras 3/TF 2.20
+    cnn_obj = load_model("cnn_model.h5")
     return pca_obj, lda_obj, cnn_obj
 
 try:
     pca, lda, cnn_model = load_all_models()
-    feature_extractor = build_feature_extractor(cnn_model)  # inisialisasi setelah model ada
+    feature_extractor = build_feature_extractor(cnn_model)
 except Exception as e:
     st.error(f"❌ Gagal memuat model/artefak: {e}")
     st.stop()
@@ -672,8 +622,9 @@ elif page == "🔍 Diagnosa":
                         interpretation = "Citra menunjukkan kondisi paru-paru normal. Tetap jaga kesehatan!"
 
                     # Ekstraksi fitur yang tepat untuk PCA-LDA
-                    vec_for_pca = get_vec_for_pca(image_array, pca)
-                    pca_features = pca.transform(vec_for_pca)
+                    feat = feature_extractor.predict(image_array, verbose=0)
+                    feat_flat = feat.reshape(1, -1) if len(feat.shape) > 2 else feat
+                    pca_features = pca.transform(feat_flat)
                     lda_prediction = lda.predict_proba(pca_features)
                     prob_lda = float(lda_prediction[0][1]) * 100
 
