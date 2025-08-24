@@ -11,6 +11,24 @@ import keras.backend as K
 import re
 import io, time
 from datetime import datetime
+import os
+from huggingface_hub import hf_hub_download
+
+HF_REPO_ID = "username/pneumonia-cnn"   # ganti 'username' sesuai akun HF-mu
+HF_FILENAME = "cnn_model.h5"
+LOCAL_MODEL_PATH = "cnn_model.h5"
+
+def ensure_cnn_model_local():
+    """Unduh cnn_model.h5 dari Hugging Face kalau belum ada di folder kerja."""
+    if not os.path.exists(LOCAL_MODEL_PATH):
+        with st.spinner("📥 Mengunduh model CNN..."):
+            hf_hub_download(
+                repo_id=HF_REPO_ID,
+                filename=HF_FILENAME,
+                local_dir=".",                 # simpan di folder kerja
+                local_dir_use_symlinks=False   # pastikan file fisik dibuat
+            )
+
 
 # ================== Konfigurasi Halaman ==================
 st.set_page_config(page_title="Website Deteksi Pneumonia", layout="wide")
