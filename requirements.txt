@@ -8,3 +8,4 @@ scikit-learn              # biarkan tanpa versi, Streamlit akan pilih 1.7.x untu
 tensorflow-cpu==2.20.0    # atau pakai: tensorflow==2.20.0
 h5py>=3.11                 # untuk load file .h5
 fpdf==1.7.2
+huggingface_hub>=0.23.0
