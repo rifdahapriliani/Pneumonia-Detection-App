@@ -36,7 +36,7 @@ def ensure_cnn_model_local():
 st.set_page_config(page_title="Website Deteksi Pneumonia", layout="wide")
 
 # ================== THEME & GLOBAL STYLES (UI ONLY) ==================
-st.markdown("""
+st.markdown('''
 <style>
 :root{
   --bg-top:#16263c;
@@ -203,12 +203,12 @@ hr{
   box-shadow: 0 8px 20px rgba(0,0,0,.25);
 }
 </style>
-""", unsafe_allow_html=True)
+''', unsafe_allow_html=True)
 
 # ===== Tema Terang (toggle) ===== #
 light_theme = st.sidebar.checkbox("🌞 Tema terang", value=False)
 if light_theme:
-  st.markdown("""
+  st.markdown('''
   <style>
   :root{
     --bg-top:#f6f8fc; --bg-bottom:#eef2f8;
@@ -289,19 +289,19 @@ if light_theme:
 
   .app-credit{ background: var(--credit-bg); color: var(--credit-ink); border:1px solid rgba(0,0,0,.08); }
   </style>
-  """, unsafe_allow_html=True)
+  ''', unsafe_allow_html=True)
 
 # ===== Credit floating (muncul di semua halaman) =====
 st.markdown('<div class="app-credit">Didesain & dikembangkan oleh <b>Rifdah Apriliani</b></div>', unsafe_allow_html=True)
 
 # ===== Helpers (UI only) =====
 def hero(title:str, subtitle:str=""):
-    st.markdown(f"""
+    st.markdown(f'''
     <div class="hero">
       <h1>{title}</h1>
       <p>{subtitle}</p>
     </div>
-    """, unsafe_allow_html=True)
+    ''', unsafe_allow_html=True)
 
 def card_start(): st.markdown('<div class="card">', unsafe_allow_html=True)
 def card_end():   st.markdown('</div>', unsafe_allow_html=True)
@@ -351,10 +351,7 @@ def overlay_heatmap(pil_img, heatmap, alpha=0.35, cmap_name='jet'):
 
 # ---- Util: Ekstraktor fitur dari CNN untuk PCA-LDA ----
 def build_feature_extractor(model):
-    """
-    Ambil persis output layer terakhir model sebagai vektor fitur.
-    Ini harus cocok dengan pca_model.pkl & lda_model.pkl (dilatih di output model).
-    """
+    """Ambil persis output layer terakhir model sebagai vektor fitur (cocok dg PCA/LDA)."""
     return Model(inputs=model.input, outputs=model.output)
 
 # ---- LDA helper aman (cek dimensi PCA) ----
@@ -380,7 +377,7 @@ if "started" not in st.session_state:
     st.session_state["started"] = False
 
 if not st.session_state["started"]:
-    st.markdown("""
+    st.markdown('''
     <div class="hero-landing">
       <div class="chips">
         <span class="chip">PCA</span>
@@ -410,7 +407,7 @@ if not st.session_state["started"]:
         </div>
       </div>
     </div>
-    """, unsafe_allow_html=True)
+    ''', unsafe_allow_html=True)
 
     st.write("")
     if st.button("🚀 Mulai"):
@@ -438,13 +435,13 @@ except Exception as e:
     st.stop()
 
 # ================== Style Tambahan (sidebar) ==================
-st.markdown("""
+st.markdown('''
     <style>
         [data-testid="stSidebar"] { padding: 10px !important; border-right: 3px solid #004080; }
         .sidebar-title { text-align: center; font-size: 26px !important; font-weight: 800 !important; color: white !important; margin-bottom: 10px; letter-spacing: 1px; }
         .stButton>button { font-size: 14px !important; }
     </style>
-""", unsafe_allow_html=True)
+''', unsafe_allow_html=True)
 
 # ================== Sidebar dengan Navigasi ==================
 SHOW_LOGO = False
@@ -693,7 +690,7 @@ elif page == "🔍 Diagnosa":
 
                     st.caption(f"⏱️ {dur:.2f} detik • threshold {thr:.2f}")
 
-                    # Tampilkan interpretasi (prioritas CNN, kalau tidak ada pakai LDA)
+                    # Tampilkan interpretasi
                     if interpretation is None and lda_label is not None:
                         interpretation = ("Citra menunjukkan indikasi pneumonia. Segera konsultasikan dengan dokter!"
                                           if lda_label.startswith("⚠️") else
@@ -953,7 +950,7 @@ elif page == "👨‍⚕️ Konsultasi & Pelayanan Kesehatan":
     card_start()
     st.subheader("🏥 Rumah Sakit Rujukan Terdekat")
 
-    st.markdown("""
+    st.markdown('''
     <style>
     .rs-grid{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
     @media (max-width:1100px){ .rs-grid{ grid-template-columns:1fr; } }
@@ -968,7 +965,7 @@ elif page == "👨‍⚕️ Konsultasi & Pelayanan Kesehatan":
     .rs-meta{ margin:6px 0 0; line-height:1.55; color: var(--ink-dim); }
     .rs-actions a{ margin-right:12px; font-weight:700; text-decoration: underline; text-underline-offset: 2px; }
     </style>
-    """, unsafe_allow_html=True)
+    ''', unsafe_allow_html=True)
 
     rumah_sakit = [
         {"nama": "RSUD Anutapura Palu - Palu",
