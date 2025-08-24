@@ -14,7 +14,7 @@ from datetime import datetime
 import os
 from huggingface_hub import hf_hub_download
 
-HF_REPO_ID = "username/pneumonia-cnn"   # ganti 'username' sesuai akun HF-mu
+HF_REPO_ID = "Rifdah/pneumonia-cnn"  
 HF_FILENAME = "cnn_model.h5"
 LOCAL_MODEL_PATH = "cnn_model.h5"
 
