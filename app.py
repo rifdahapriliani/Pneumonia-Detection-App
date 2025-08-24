@@ -189,15 +189,32 @@ hr{
 }
 
 /* Credit floating (pojok kanan bawah) */
+/* Credit floating (tengah supaya tidak ketutup Manage app) */
 .app-credit{
-  position: fixed; right: 18px; bottom: 12px; z-index: 9999;
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 10000;
   background: var(--credit-bg);
   color: var(--credit-ink);
   backdrop-filter: blur(6px);
   border: 1px solid rgba(255,255,255,.18);
-  padding: 6px 12px; border-radius: 999px;
-  font-size: 13px; font-weight: 700; letter-spacing:.2px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing:.2px;
   box-shadow: 0 8px 20px rgba(0,0,0,.25);
+}
+
+/* Di layar kecil, pindah ke tengah atas agar tidak bertabrakan */
+@media (max-width: 900px){
+  .app-credit{
+    top: 14px;
+    bottom: auto;
+  }
+
 }
 </style>
 """, unsafe_allow_html=True)
