@@ -351,54 +351,29 @@ def overlay_heatmap(pil_img, heatmap, alpha=0.35, cmap_name='jet'):
 
 # ---- Util: Ekstraktor fitur dari CNN untuk PCA-LDA ----
 def build_feature_extractor(model):
-    # coba nama layer umum
-    for lname in ["global_average_pooling2d", "avg_pool", "flatten"]:
-        try:
-            layer = model.get_layer(lname)
-            return Model(model.input, layer.output)
-        except Exception:
-            pass
-    # fallback: cari layer sebelum output yang berdimensi > 1
-    for layer in reversed(model.layers[:-1]):
-        try:
-            shp = layer.output_shape
-            last_dim = shp[-1] if isinstance(shp, tuple) else None
-            if isinstance(last_dim, int) and last_dim > 1:
-                return Model(model.input, layer.output)
-        except Exception:
-            try:
-                return Model(model.input, layer.output)
-            except Exception:
-                continue
-    # fallback terakhir: pakai layer -2
-    return Model(model.input, model.layers[-2].output)
-
-# ---- Pilih vektor yang cocok untuk PCA (raw flatten atau fitur CNN) ----
-def get_vec_for_pca(img_array, pca, feat_extractor):
     """
-    Otomatis pilih vektor fitur yang cocok untuk PCA:
-    - kalau PCA dilatih di raw flatten (224*224*3 = 150528) -> pakai raw
-    - kalau dilatih di fitur CNN (mis. 25088) -> pakai fitur penultimate
+    Ambil persis output layer terakhir model sebagai vektor fitur.
+    Ini harus cocok dengan pca_model.pkl & lda_model.pkl (dilatih di output model).
     """
-    n_in = getattr(pca, "n_features_in_", None)
+    return Model(inputs=model.input, outputs=model.output)
 
-    # kandidat 1: raw flatten
-    raw_vec = img_array.reshape(1, -1)  # shape (1, H*W*C)
-    if n_in == raw_vec.shape[1]:
-        return raw_vec
-
-    # kandidat 2: fitur CNN (penultimate)
-    cnn_feat = feat_extractor.predict(img_array, verbose=0)
-    cnn_vec = cnn_feat.reshape(1, -1) if cnn_feat.ndim > 2 else cnn_feat
-    if n_in == cnn_vec.shape[1]:
-        return cnn_vec
-
-    st.error(
-        f"Dimensi PCA ({n_in}) tidak cocok. Kandidat: raw={raw_vec.shape[1]}, "
-        f"penultimate={cnn_vec.shape[1]}. Pastikan pca_model.pkl/lda_model.pkl "
-        f"dilatih dari sumber fitur yang sama."
-    )
-    raise ValueError("PCA feature mismatch")
+# ---- LDA helper aman (cek dimensi PCA) ----
+def run_pca_lda_safe(feat_flat, thr=0.5):
+    try:
+        n_in = getattr(pca, "n_features_in_", None)
+        if n_in is None or feat_flat.shape[1] != n_in:
+            st.warning(
+                f"PCA/LDA dilewati (mismatch fitur): PCA dilatih {n_in} fitur, "
+                f"fitur CNN sekarang {feat_flat.shape[1]}."
+            )
+            return None, None
+        p = pca.transform(feat_flat)
+        proba = float(lda.predict_proba(p)[0][1])  # proba kelas 1
+        label = "⚠️ Pneumonia" if proba > thr else "✅ Normal"
+        return label, proba * 100.0
+    except Exception as e:
+        st.warning(f"PCA/LDA error: {e}")
+        return None, None
 
 # ================== Halaman Selamat Datang ==================
 if "started" not in st.session_state:
@@ -575,19 +550,29 @@ elif page == "🔍 Diagnosa":
                     pred = cnn_model.predict(img_array, verbose=0)
                 dur = time.perf_counter() - start
 
-                prob = float(pred[0][0]) * 100.0
-                result = "⚠️ Pneumonia" if pred[0][0] > thr else "✅ Normal"
+                # ==== CNN: tampilkan hanya jika output 1 neuron ====
+                out_dim = int(np.prod(cnn_model.output_shape[1:]))
+                result = None
+                if out_dim == 1:
+                    prob = float(pred[0][0]) * 100.0
+                    result = "⚠️ Pneumonia" if pred[0][0] > thr else "✅ Normal"
 
-                # === PCA-LDA berbasis sumber fitur yang cocok (raw atau CNN) ===
-                vec_for_pca = get_vec_for_pca(img_array, pca, feature_extractor)
-                pca_feat = pca.transform(vec_for_pca)
-                lda_pred = lda.predict_proba(pca_feat)
-                prob_lda = float(lda_pred[0][1]) * 100
+                # ==== PCA-LDA: pakai output model sebagai fitur ====
+                feat = feature_extractor.predict(img_array, verbose=0)
+                feat_flat = feat.reshape(1, -1) if feat.ndim > 2 else feat
+                lda_label, prob_lda = run_pca_lda_safe(feat_flat, thr=thr)
 
                 st.image(image, caption="🖼️ Citra Rontgen", use_column_width=True)
-                st.write(f"📊 **CNN Model:** {result}")
-                st.write(f"📈 **Probabilitas CNN:** {prob:.2f}%")
-                st.write(f"📈 **Probabilitas LDA:** {prob_lda:.2f}%")
+                if result is not None:
+                    st.write(f"📊 **CNN Model:** {result}")
+                    st.write(f"📈 **Probabilitas CNN:** {prob:.2f}%")
+                else:
+                    st.info("Model CNN digunakan sebagai ekstraktor fitur untuk LDA.")
+
+                if prob_lda is not None:
+                    st.write(f"📊 **PCA-LDA Model:** {lda_label}")
+                    st.write(f"📈 **Probabilitas LDA:** {prob_lda:.2f}%")
+
                 st.caption(f"⏱️ {dur:.2f} detik • threshold {thr:.2f}")
 
                 if show_gc:
@@ -601,14 +586,17 @@ elif page == "🔍 Diagnosa":
                 if save_ok:
                     if "data_pasien" not in st.session_state:
                         st.session_state["data_pasien"] = []
+                    label_to_save = result or (lda_label or "N/A")
+                    cnn_conf_str = f"{prob:.2f}" if result is not None else "-"
+                    lda_conf_str = f"{prob_lda:.2f}" if prob_lda is not None else "-"
                     st.session_state["data_pasien"].append({
                         "No": len(st.session_state["data_pasien"]) + 1,
                         "Nama": f.name,
                         "Usia": 0,
                         "Gejala": "-",
-                        "Hasil Prediksi": result,
-                        "Confidence CNN (%)": f"{prob:.2f}",
-                        "Confidence LDA (%)": f"{prob_lda:.2f}"
+                        "Hasil Prediksi": label_to_save,
+                        "Confidence CNN (%)": cnn_conf_str,
+                        "Confidence LDA (%)": lda_conf_str
                     })
 
             st.success("✅ Batch selesai.")
@@ -654,42 +642,64 @@ elif page == "🔍 Diagnosa":
                     with st.spinner("🔄 Menghitung prediksi..."):
                         cnn_prediction = cnn_model.predict(image_array, verbose=0)
                     dur = time.perf_counter() - start
-                    prob_pneumonia = float(cnn_prediction[0][0]) * 100
 
-                    if cnn_prediction[0][0] > thr:
-                        cnn_result = "⚠️ Pneumonia"
-                        interpretation = "Citra menunjukkan indikasi pneumonia. Segera konsultasikan dengan dokter!"
-                    else:
-                        cnn_result = "✅ Normal"
-                        interpretation = "Citra menunjukkan kondisi paru-paru normal. Tetap jaga kesehatan!"
+                    # ==== CNN (jika 1 neuron) ====
+                    out_dim = int(np.prod(cnn_model.output_shape[1:]))
+                    cnn_result = None
+                    prob_pneumonia = None
+                    interpretation = None
+                    if out_dim == 1:
+                        prob_pneumonia = float(cnn_prediction[0][0]) * 100
+                        if cnn_prediction[0][0] > thr:
+                            cnn_result = "⚠️ Pneumonia"
+                            interpretation = "Citra menunjukkan indikasi pneumonia. Segera konsultasikan dengan dokter!"
+                        else:
+                            cnn_result = "✅ Normal"
+                            interpretation = "Citra menunjukkan kondisi paru-paru normal. Tetap jaga kesehatan!"
 
-                    # === PCA-LDA: pilih vektor yang sesuai dgn PCA ===
-                    vec_for_pca = get_vec_for_pca(image_array, pca, feature_extractor)
-                    pca_features = pca.transform(vec_for_pca)
-                    lda_prediction = lda.predict_proba(pca_features)
-                    prob_lda = float(lda_prediction[0][1]) * 100
+                    # ==== PCA-LDA (fitur = output model) ====
+                    feat = feature_extractor.predict(image_array, verbose=0)
+                    feat_flat = feat.reshape(1, -1) if feat.ndim > 2 else feat
+                    lda_label, prob_lda = run_pca_lda_safe(feat_flat, thr=thr)
 
+                    # Simpan (pilih label yang tersedia)
                     if save_ok:
                         if "data_pasien" not in st.session_state:
                             st.session_state["data_pasien"] = []
+                        label_to_save = (cnn_result if cnn_result is not None else (lda_label or "N/A"))
+                        cnn_conf_str = f"{prob_pneumonia:.2f}" if prob_pneumonia is not None else "-"
+                        lda_conf_str = f"{prob_lda:.2f}" if prob_lda is not None else "-"
                         st.session_state["data_pasien"].append({
                             "No": len(st.session_state["data_pasien"]) + 1,
                             "Nama": nama,
                             "Usia": usia,
                             "Gejala": gejala,
-                            "Hasil Prediksi": cnn_result,
-                            "Confidence CNN (%)": f"{prob_pneumonia:.2f}",
-                            "Confidence LDA (%)": f"{prob_lda:.2f}"
+                            "Hasil Prediksi": label_to_save,
+                            "Confidence CNN (%)": cnn_conf_str,
+                            "Confidence LDA (%)": lda_conf_str
                         })
                         st.success("✅ Data pasien dan hasil prediksi berhasil disimpan!")
 
                     st.subheader("🩺 Hasil Prediksi:")
-                    st.write(f"📊 **CNN Model:** {cnn_result}")
-                    st.write(f"📊 **PCA-LDA Model:** {'✅ Normal' if lda_prediction[0][0] > thr else '⚠️ Pneumonia'}")
-                    st.write(f"📈 **Probabilitas CNN:** {prob_pneumonia:.2f}%")
-                    st.write(f"📈 **Probabilitas LDA:** {prob_lda:.2f}%")
+                    if cnn_result is not None:
+                        st.write(f"📊 **CNN Model:** {cnn_result}")
+                        st.write(f"📈 **Probabilitas CNN:** {prob_pneumonia:.2f}%")
+                    else:
+                        st.info("Model CNN digunakan sebagai ekstraktor fitur untuk LDA.")
+
+                    if prob_lda is not None:
+                        st.write(f"📊 **PCA-LDA Model:** {lda_label}")
+                        st.write(f"📈 **Probabilitas LDA:** {prob_lda:.2f}%")
+
                     st.caption(f"⏱️ {dur:.2f} detik • threshold {thr:.2f}")
-                    st.warning(interpretation)
+
+                    # Tampilkan interpretasi (prioritas CNN, kalau tidak ada pakai LDA)
+                    if interpretation is None and lda_label is not None:
+                        interpretation = ("Citra menunjukkan indikasi pneumonia. Segera konsultasikan dengan dokter!"
+                                          if lda_label.startswith("⚠️") else
+                                          "Citra menunjukkan kondisi paru-paru normal. Tetap jaga kesehatan!")
+                    if interpretation:
+                        st.warning(interpretation)
 
                     if st.checkbox("🔥 Tampilkan Grad-CAM (eksplanasi)"):
                         alpha = st.slider("Transparansi overlay", 0.05, 0.90, 0.35, 0.05)
@@ -714,8 +724,12 @@ elif page == "🔍 Diagnosa":
                             pdf.cell(0,8,f"Nama: {nama} | Usia: {usia}", ln=1)
                             pdf.multi_cell(0,8,f"Gejala: {gejala}")
                             pdf.ln(2)
-                            pdf.cell(0,8,f"Hasil CNN: {cnn_result}", ln=1)
-                            pdf.cell(0,8,f"Prob. CNN: {prob_pneumonia:.2f}% | Prob. LDA: {prob_lda:.2f}%", ln=1)
+                            if cnn_result is not None:
+                                pdf.cell(0,8,f"Hasil CNN: {cnn_result}", ln=1)
+                                pdf.cell(0,8,f"Prob. CNN: {prob_pneumonia:.2f}% | Prob. LDA: {(prob_lda or 0):.2f}%", ln=1)
+                            else:
+                                pdf.cell(0,8,f"Hasil (PCA-LDA): {lda_label or 'N/A'}", ln=1)
+                                pdf.cell(0,8,f"Prob. LDA: {(prob_lda or 0):.2f}% | CNN: ekstraktor fitur", ln=1)
                             pdf.cell(0,8,f"Threshold: {thr:.2f}", ln=1)
                             path = "laporan_pemeriksaan.pdf"; pdf.output(path)
                             with open(path,"rb") as f:
@@ -726,8 +740,8 @@ Tanggal: {datetime.now():%Y-%m-%d %H:%M}
 Nama: {nama} | Usia: {usia}
 Gejala: {gejala}
 
-Hasil CNN: {cnn_result}
-Prob. CNN: {prob_pneumonia:.2f}% | Prob. LDA: {prob_lda:.2f}%
+Hasil: {(cnn_result or (lda_label or 'N/A'))}
+Prob. CNN: {(prob_pneumonia if prob_pneumonia is not None else 0):.2f}% | Prob. LDA: {(prob_lda or 0):.2f}%
 Threshold: {thr:.2f}
 """
                             st.download_button("⬇️ Unduh Laporan (TXT)", txt, file_name="laporan_pneumonia.txt")
