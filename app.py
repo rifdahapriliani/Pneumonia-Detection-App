@@ -351,6 +351,49 @@ def overlay_heatmap(pil_img, heatmap, alpha=0.35, cmap_name='jet'):
     colored = (colored * 255).astype(np.uint8)
     colored_img = Image.fromarray(colored).resize(pil_img.size)
     return Image.blend(pil_img.convert("RGB"), colored_img.convert("RGB"), alpha=alpha)
+# ==== Helper: siapkan vektor yang cocok untuk PCA ====
+@st.cache_resource
+def _build_feature_extractor(model):
+    """
+    Coba ambil layer sebelum output (penultimate) untuk dipakai sebagai fitur CNN.
+    Kalau gagal, pakai layer ke-2 dari belakang.
+    """
+    try:
+        penultimate = model.layers[-2]
+    except Exception:
+        penultimate = model.layers[-1]  # fallback (hampir pasti bukan yang ideal)
+    extractor = tf.keras.Model(model.input, penultimate.output)
+    out_shape = extractor.output_shape
+    feat_dim = int(np.prod(out_shape[1:]))
+    return extractor, feat_dim
+
+feature_extractor, feat_dim = _build_feature_extractor(cnn_model)
+
+def get_vec_for_pca(image_array, pca):
+    """
+    Pilih sumber fitur yang dimensinya sama dengan PCA yang sudah dilatih:
+    1) coba raw image yang di-flatten
+    2) kalau tidak cocok, pakai fitur dari layer penultimate CNN
+    """
+    n_in = getattr(pca, "n_features_in_", None)
+
+    raw_vec = image_array.reshape(1, -1)
+    if n_in == raw_vec.shape[1]:
+        return raw_vec  # PCA dilatih pakai raw image flatten
+
+    # fitur dari penultimate layer
+    cnn_feat = feature_extractor.predict(image_array, verbose=0).reshape(1, -1)
+    if n_in == cnn_feat.shape[1]:
+        return cnn_feat  # PCA dilatih pakai fitur CNN
+
+    # kalau tetap tidak cocok, tampilkan pesan yang jelas
+    st.error(
+        f"Dimensi fitur PCA yang dilatih ({n_in}) tidak cocok dengan kandidat input "
+        f"(raw={raw_vec.shape[1]}, penultimate={cnn_feat.shape[1]}). "
+        "Pastikan pca_model.pkl/lda_model.pkl dilatih dari sumber fitur yang sama."
+    )
+    raise ValueError("PCA feature mismatch")
+
 
 # ---- Util: Ekstraktor fitur dari CNN untuk PCA-LDA ----
 def build_feature_extractor(model):
@@ -641,9 +684,9 @@ elif page == "🔍 Diagnosa":
                         interpretation = "Citra menunjukkan kondisi paru-paru normal. Tetap jaga kesehatan!"
 
                     # Ekstraksi fitur yang tepat untuk PCA-LDA
-                    feat = feature_extractor.predict(image_array, verbose=0)
-                    feat_flat = feat.reshape(1, -1) if len(feat.shape) > 2 else feat
-                    pca_features = pca.transform(feat_flat)
+                    # Tentukan vektor yang cocok untuk PCA (raw flatten atau fitur penultimate CNN)
+                    vec_for_pca = get_vec_for_pca(image_array, pca)
+                    pca_features = pca.transform(vec_for_pca)
                     lda_prediction = lda.predict_proba(pca_features)
                     prob_lda = float(lda_prediction[0][1]) * 100
 
