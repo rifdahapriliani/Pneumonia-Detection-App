@@ -1,4 +1,3 @@
-# ================== ENV (HARUS DI PALING ATAS, sebelum import tensorflow) ==================
 import os
 os.environ["KERAS_BACKEND"] = "tensorflow"
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
@@ -12,13 +11,16 @@ from tensorflow.keras.models import load_model, Model
 from PIL import Image, ImageEnhance
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns  # optional
+# ---- seaborn opsional (biar tidak error kalau belum terinstall)
+try:
+    import seaborn as sns  # noqa: F401
+except Exception:
+    sns = None
 from tensorflow.keras import backend as K
 import re
 import io, time
 from datetime import datetime
 from huggingface_hub import hf_hub_download
-
 
 # ================== Hugging Face config ==================
 HF_REPO_ID = "Rifdah/pneumonia-cnn"   # ganti jika repo berbeda
