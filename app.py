@@ -29,7 +29,6 @@ def ensure_cnn_model_local():
                 local_dir_use_symlinks=False   # pastikan file fisik dibuat
             )
 
-
 # ================== Konfigurasi Halaman ==================
 st.set_page_config(page_title="Website Deteksi Pneumonia", layout="wide")
 
@@ -351,23 +350,9 @@ def overlay_heatmap(pil_img, heatmap, alpha=0.35, cmap_name='jet'):
     colored = (colored * 255).astype(np.uint8)
     colored_img = Image.fromarray(colored).resize(pil_img.size)
     return Image.blend(pil_img.convert("RGB"), colored_img.convert("RGB"), alpha=alpha)
-# ==== Helper: siapkan vektor yang cocok untuk PCA ====
-@st.cache_resource
-def _build_feature_extractor(model):
-    """
-    Coba ambil layer sebelum output (penultimate) untuk dipakai sebagai fitur CNN.
-    Kalau gagal, pakai layer ke-2 dari belakang.
-    """
-    try:
-        penultimate = model.layers[-2]
-    except Exception:
-        penultimate = model.layers[-1]  # fallback (hampir pasti bukan yang ideal)
-    extractor = tf.keras.Model(model.input, penultimate.output)
-    out_shape = extractor.output_shape
-    feat_dim = int(np.prod(out_shape[1:]))
-    return extractor, feat_dim
 
-feature_extractor, feat_dim = _build_feature_extractor(cnn_model)
+# ===== Placeholder extractor (akan diisi setelah model dimuat)
+feature_extractor = None
 
 def get_vec_for_pca(image_array, pca):
     """
@@ -382,6 +367,10 @@ def get_vec_for_pca(image_array, pca):
         return raw_vec  # PCA dilatih pakai raw image flatten
 
     # fitur dari penultimate layer
+    global feature_extractor
+    if feature_extractor is None:
+        feature_extractor = build_feature_extractor(cnn_model)
+
     cnn_feat = feature_extractor.predict(image_array, verbose=0).reshape(1, -1)
     if n_in == cnn_feat.shape[1]:
         return cnn_feat  # PCA dilatih pakai fitur CNN
@@ -393,7 +382,6 @@ def get_vec_for_pca(image_array, pca):
         "Pastikan pca_model.pkl/lda_model.pkl dilatih dari sumber fitur yang sama."
     )
     raise ValueError("PCA feature mismatch")
-
 
 # ---- Util: Ekstraktor fitur dari CNN untuk PCA-LDA ----
 def build_feature_extractor(model):
@@ -476,7 +464,7 @@ def load_all_models():
 
 try:
     pca, lda, cnn_model = load_all_models()
-    feature_extractor = build_feature_extractor(cnn_model)
+    feature_extractor = build_feature_extractor(cnn_model)  # inisialisasi setelah model ada
 except Exception as e:
     st.error(f"❌ Gagal memuat model/artefak: {e}")
     st.stop()
@@ -684,7 +672,6 @@ elif page == "🔍 Diagnosa":
                         interpretation = "Citra menunjukkan kondisi paru-paru normal. Tetap jaga kesehatan!"
 
                     # Ekstraksi fitur yang tepat untuk PCA-LDA
-                    # Tentukan vektor yang cocok untuk PCA (raw flatten atau fitur penultimate CNN)
                     vec_for_pca = get_vec_for_pca(image_array, pca)
                     pca_features = pca.transform(vec_for_pca)
                     lda_prediction = lda.predict_proba(pca_features)
