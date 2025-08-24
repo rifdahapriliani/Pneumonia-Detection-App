@@ -12,6 +12,29 @@ import re
 import io, time
 from datetime import datetime
 
+# === Hugging Face download config (ADD) ===
+import os
+from huggingface_hub import hf_hub_download
+
+HF_REPO_ID = "Rifdah/pneumonia-cnn"   # <-- GANTI jika nama repo kamu berbeda
+HF_FILENAME = "cnn_model.h5"
+LOCAL_MODEL_PATH = "cnn_model.h5"
+
+# Jika repo HF Private, set token via Secrets/ENV: HF_TOKEN=hf_xxx
+HF_TOKEN = os.getenv("HF_TOKEN", None)
+
+def ensure_cnn_model_local():
+    """Unduh cnn_model.h5 dari Hugging Face kalau belum ada di folder kerja."""
+    if not os.path.exists(LOCAL_MODEL_PATH):
+        with st.spinner("📥 Mengunduh model CNN..."):
+            hf_hub_download(
+                repo_id=HF_REPO_ID,
+                filename=HF_FILENAME,
+                local_dir=".",                 # simpan di root project
+                local_dir_use_symlinks=False,  # pastikan file fisik dibuat
+                token=HF_TOKEN                 # biarkan None jika repo public
+            )
+
 # ================== Konfigurasi Halaman ==================
 st.set_page_config(page_title="Website Deteksi Pneumonia", layout="wide")
 
@@ -78,7 +101,7 @@ html, body, [data-testid="stAppViewContainer"] {
 
 /* Buttons */
 .stButton>button{
-  background: linear-gradient(180deg, var(--brand), var(--brand-2)) !important;
+  background: linear-gradient(180deg, var(--brand), var(--brand-2)) ! important;
   color:white !important; font-weight:800 !important; letter-spacing:.2px;
   padding:.64rem 1rem !important; border-radius:12px !important; border:0 !important;
   box-shadow: 0 10px 22px rgba(37,99,235,.28);
@@ -408,7 +431,12 @@ def load_all_models():
         pca_obj = pickle.load(pca_file)
     with open("lda_model.pkl", "rb") as lda_file:
         lda_obj = pickle.load(lda_file)
-    cnn_obj = load_model("cnn_model.h5")
+
+    # pastikan file CNN ada (download dari Hugging Face jika belum)
+    ensure_cnn_model_local()
+
+    # compile=False aman untuk Keras 3 / TF 2.20
+    cnn_obj = load_model(LOCAL_MODEL_PATH, compile=False)
     return pca_obj, lda_obj, cnn_obj
 
 try:
