@@ -1,9 +1,8 @@
-%%writefile app.py
 import streamlit as st
 import pickle
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.models import load_model
+from tensorflow.keras.models import load_model, Model
 from PIL import Image, ImageEnhance
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -12,6 +11,23 @@ import keras.backend as K
 import re
 import io, time
 from datetime import datetime
+import os
+from huggingface_hub import hf_hub_download
+
+HF_REPO_ID = "Rifdah/pneumonia-cnn"  
+HF_FILENAME = "cnn_model.h5"
+LOCAL_MODEL_PATH = "cnn_model.h5"
+
+def ensure_cnn_model_local():
+    """Unduh cnn_model.h5 dari Hugging Face kalau belum ada di folder kerja."""
+    if not os.path.exists(LOCAL_MODEL_PATH):
+        with st.spinner("📥 Mengunduh model CNN..."):
+            hf_hub_download(
+                repo_id=HF_REPO_ID,
+                filename=HF_FILENAME,
+                local_dir=".",                 # simpan di folder kerja
+                local_dir_use_symlinks=False   # pastikan file fisik dibuat
+            )
 
 # ================== Konfigurasi Halaman ==================
 st.set_page_config(page_title="Website Deteksi Pneumonia", layout="wide")
@@ -46,7 +62,6 @@ html, body, [data-testid="stAppViewContainer"] {
 /* Base font */
 * { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif; }
 
-/* Container padding */
 .block-container{ padding-top: 1.2rem; padding-bottom: 2.2rem; }
 
 /* Sidebar */
@@ -109,7 +124,7 @@ a{ color:#9cd0ff !important; text-decoration: underline; text-underline-offset: 
 .hero h1{ margin: 0 0 6px; }
 .hero p{ margin: 0; color: var(--ink-dim); }
 
-/* Landing Hero khusus */
+/* Landing Hero */
 .hero-landing{
   border-radius: 18px;
   padding: 26px 28px;
@@ -192,8 +207,6 @@ light_theme = st.sidebar.checkbox("🌞 Tema terang", value=False)
 if light_theme:
   st.markdown("""
   <style>
-  /* ========= THEME TERANG – FIX KONTRAS & TEKS PUTIH ========= */
-
   :root{
     --bg-top:#f6f8fc; --bg-bottom:#eef2f8;
     --card:#ffffff;
@@ -281,7 +294,7 @@ if light_theme:
   """, unsafe_allow_html=True)
 
 # ===== Credit floating (muncul di semua halaman) =====
-st.markdown('<div class="app-credit">Dibuat oleh <b>Rifdah Apriliani</b></div>', unsafe_allow_html=True)
+st.markdown('<div class="app-credit">Didesain & dikembangkan oleh <b>Rifdah Apriliani</b></div>', unsafe_allow_html=True)
 
 # ===== Helpers (UI only) =====
 def hero(title:str, subtitle:str=""):
@@ -338,12 +351,67 @@ def overlay_heatmap(pil_img, heatmap, alpha=0.35, cmap_name='jet'):
     colored_img = Image.fromarray(colored).resize(pil_img.size)
     return Image.blend(pil_img.convert("RGB"), colored_img.convert("RGB"), alpha=alpha)
 
+# ===== Placeholder extractor (akan diisi setelah model dimuat)
+feature_extractor = None
+
+def get_vec_for_pca(image_array, pca):
+    """
+    Pilih sumber fitur yang dimensinya sama dengan PCA yang sudah dilatih:
+    1) coba raw image yang di-flatten
+    2) kalau tidak cocok, pakai fitur dari layer penultimate CNN
+    """
+    n_in = getattr(pca, "n_features_in_", None)
+
+    raw_vec = image_array.reshape(1, -1)
+    if n_in == raw_vec.shape[1]:
+        return raw_vec  # PCA dilatih pakai raw image flatten
+
+    # fitur dari penultimate layer
+    global feature_extractor
+    if feature_extractor is None:
+        feature_extractor = build_feature_extractor(cnn_model)
+
+    cnn_feat = feature_extractor.predict(image_array, verbose=0).reshape(1, -1)
+    if n_in == cnn_feat.shape[1]:
+        return cnn_feat  # PCA dilatih pakai fitur CNN
+
+    # kalau tetap tidak cocok, tampilkan pesan yang jelas
+    st.error(
+        f"Dimensi fitur PCA yang dilatih ({n_in}) tidak cocok dengan kandidat input "
+        f"(raw={raw_vec.shape[1]}, penultimate={cnn_feat.shape[1]}). "
+        "Pastikan pca_model.pkl/lda_model.pkl dilatih dari sumber fitur yang sama."
+    )
+    raise ValueError("PCA feature mismatch")
+
+# ---- Util: Ekstraktor fitur dari CNN untuk PCA-LDA ----
+def build_feature_extractor(model):
+    # coba nama layer umum
+    for lname in ["global_average_pooling2d", "avg_pool", "flatten"]:
+        try:
+            layer = model.get_layer(lname)
+            return Model(model.input, layer.output)
+        except Exception:
+            pass
+    # fallback: cari layer sebelum output yang berdimensi > 1
+    for layer in reversed(model.layers[:-1]):
+        try:
+            shp = layer.output_shape
+            last_dim = shp[-1] if isinstance(shp, tuple) else None
+            if isinstance(last_dim, int) and last_dim > 1:
+                return Model(model.input, layer.output)
+        except Exception:
+            try:
+                return Model(model.input, layer.output)
+            except Exception:
+                continue
+    # fallback terakhir: pakai layer -2
+    return Model(model.input, model.layers[-2].output)
+
 # ================== Halaman Selamat Datang ==================
 if "started" not in st.session_state:
     st.session_state["started"] = False
 
 if not st.session_state["started"]:
-    # —— Landing tanpa gambar: hero-panel + chips + bullet + tiga fitur + CTA ——
     st.markdown("""
     <div class="hero-landing">
       <div class="chips">
@@ -389,11 +457,14 @@ def load_all_models():
         pca_obj = pickle.load(pca_file)
     with open("lda_model.pkl", "rb") as lda_file:
         lda_obj = pickle.load(lda_file)
-    cnn_obj = load_model("cnn_model.h5")
+
+    ensure_cnn_model_local()
+    cnn_obj = load_model(LOCAL_MODEL_PATH, compile=False)  # aman untuk Keras 3/TF 2.20
     return pca_obj, lda_obj, cnn_obj
 
 try:
     pca, lda, cnn_model = load_all_models()
+    feature_extractor = build_feature_extractor(cnn_model)  # inisialisasi setelah model ada
 except Exception as e:
     st.error(f"❌ Gagal memuat model/artefak: {e}")
     st.stop()
@@ -418,7 +489,8 @@ st.sidebar.markdown("<h1 class='sidebar-title'>🔬 Dashboard PCA-LDA</h1>", uns
 st.sidebar.markdown("---")
 
 page = st.sidebar.radio("Navigasi",
-    ["🏠 Home", "🔍 Diagnosa", "📊 Data Pasien", "💡 Tentang Pneumonia", "💊 Pengobatan", "👨‍⚕️ Konsultasi & Pelayanan Kesehatan"],
+    ["🏠 Home", "🔍 Diagnosa", "📊 Data Pasien", "💡 Tentang Pneumonia", "💊 Pengobatan",
+     "👨‍⚕️ Konsultasi & Pelayanan Kesehatan", "🧪 Tentang Model"],
     index=0
 )
 
@@ -492,6 +564,9 @@ elif page == "🔍 Diagnosa":
         files = st.file_uploader("Unggah beberapa citra rontgen", type=["jpg","jpeg","png"], accept_multiple_files=True)
         thr = st.slider("⚙️ Ambang deteksi (threshold)", 0.10, 0.90, 0.50, 0.05)
         save_ok = st.checkbox("💾 Simpan ke Data Pasien", value=True)
+        show_gc = st.checkbox("🔥 Perlihatkan Grad-CAM untuk setiap gambar", value=False)
+        alpha = st.slider("Transparansi overlay Grad-CAM", 0.05, 0.90, 0.35, 0.05)
+        cmap_name = st.selectbox("Colormap Grad-CAM", ["jet","viridis","plasma","magma","inferno"], index=0)
         if files:
             for idx, f in enumerate(files, 1):
                 st.markdown(f"**Berkas {idx}: {f.name}**")
@@ -510,17 +585,25 @@ elif page == "🔍 Diagnosa":
                 prob = float(pred[0][0]) * 100.0
                 result = "⚠️ Pneumonia" if pred[0][0] > thr else "✅ Normal"
 
+                # LDA berbasis fitur
+                feat = feature_extractor.predict(img_array, verbose=0)
+                feat_flat = feat.reshape(1, -1) if len(feat.shape) > 2 else feat
+                pca_feat = pca.transform(feat_flat)
+                lda_pred = lda.predict_proba(pca_feat)
+                prob_lda = float(lda_pred[0][1]) * 100
+
                 st.image(image, caption="🖼️ Citra Rontgen", use_column_width=True)
                 st.write(f"📊 **CNN Model:** {result}")
                 st.write(f"📈 **Probabilitas CNN:** {prob:.2f}%")
+                st.write(f"📈 **Probabilitas LDA:** {prob_lda:.2f}%")
                 st.caption(f"⏱️ {dur:.2f} detik • threshold {thr:.2f}")
 
-                if st.checkbox(f"🔥 Tampilkan Grad-CAM untuk {f.name}", key=f"gc_{idx}"):
+                if show_gc:
                     heat, last_name = gradcam_heatmap(img_array, cnn_model)
                     if heat is None:
                         st.info("Tidak menemukan layer konvolusi terakhir untuk Grad-CAM.")
                     else:
-                        overlay = overlay_heatmap(img_resized, heat)
+                        overlay = overlay_heatmap(img_resized, heat, alpha=alpha, cmap_name=cmap_name)
                         st.image(overlay, caption=f"Grad-CAM (layer: {last_name})", use_column_width=True)
 
                 if save_ok:
@@ -533,7 +616,7 @@ elif page == "🔍 Diagnosa":
                         "Gejala": "-",
                         "Hasil Prediksi": result,
                         "Confidence CNN (%)": f"{prob:.2f}",
-                        "Confidence LDA (%)": "-"
+                        "Confidence LDA (%)": f"{prob_lda:.2f}"
                     })
 
             st.success("✅ Batch selesai.")
@@ -588,8 +671,9 @@ elif page == "🔍 Diagnosa":
                         cnn_result = "✅ Normal"
                         interpretation = "Citra menunjukkan kondisi paru-paru normal. Tetap jaga kesehatan!"
 
-                    cnn_features = cnn_model.predict(image_array, verbose=0)
-                    pca_features = pca.transform(cnn_features.flatten().reshape(1, -1))
+                    # Ekstraksi fitur yang tepat untuk PCA-LDA
+                    vec_for_pca = get_vec_for_pca(image_array, pca)
+                    pca_features = pca.transform(vec_for_pca)
                     lda_prediction = lda.predict_proba(pca_features)
                     prob_lda = float(lda_prediction[0][1]) * 100
 
@@ -616,11 +700,13 @@ elif page == "🔍 Diagnosa":
                     st.warning(interpretation)
 
                     if st.checkbox("🔥 Tampilkan Grad-CAM (eksplanasi)"):
+                        alpha = st.slider("Transparansi overlay", 0.05, 0.90, 0.35, 0.05)
+                        cmap_name = st.selectbox("Colormap", ["jet","viridis","plasma","magma","inferno"])
                         heatmap, last_name = gradcam_heatmap(image_array, cnn_model)
                         if heatmap is None:
                             st.info("Tidak menemukan layer konvolusi terakhir untuk Grad-CAM.")
                         else:
-                            overlay_img = overlay_heatmap(image_resized, heatmap)
+                            overlay_img = overlay_heatmap(image_resized, heatmap, alpha=alpha, cmap_name=cmap_name)
                             st.image(overlay_img, caption=f"Grad-CAM (layer: {last_name})", use_column_width=True)
                             buf = io.BytesIO()
                             overlay_img.save(buf, format="PNG")
@@ -689,13 +775,38 @@ elif page == "📊 Data Pasien":
         if "No" in df_pasien.columns:
             df_pasien = df_pasien.sort_values("No", ascending=False)
 
-        st.dataframe(df_pasien, width=1000, height=400)
+        # Editor dengan kolom "Hapus?"
+        edit_df = df_pasien.copy()
+        if "Hapus?" not in edit_df.columns:
+            edit_df["Hapus?"] = False
+        edited = st.data_editor(edit_df, width=1000, height=400, disabled=[], key="editor")
 
+        # Unduh CSV
         csv_bytes = df_pasien.to_csv(index=False).encode("utf-8")
         st.download_button("⬇️ Unduh CSV (tampilan saat ini)", csv_bytes, "data_pasien.csv", "text/csv")
 
-        hapus_index = st.number_input("Masukkan nomor pasien yang ingin dihapus", min_value=1, max_value=len(df_pasien), step=1, key="hapus_index")
+        # Unduh Excel
+        from io import BytesIO
+        excel_buf = BytesIO()
+        with pd.ExcelWriter(excel_buf, engine="xlsxwriter") as writer:
+            df_pasien.to_excel(writer, index=False, sheet_name="Data Pasien")
+        st.download_button("⬇️ Unduh Excel", excel_buf.getvalue(),
+                           "data_pasien.xlsx",
+                           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+        # Hapus yang dicentang (fitur tambahan, tanpa menghapus fitur lama)
+        to_drop_idx = edited.index[edited["Hapus?"] == True].tolist()
+        if to_drop_idx and st.button(f"🗑️ Hapus {len(to_drop_idx)} baris terpilih"):
+            # mapping kembali ke session_state berdasarkan "No"
+            asal = pd.DataFrame(st.session_state["data_pasien"])
+            no_drop = edited.iloc[to_drop_idx]["No"].values
+            asal = asal[~asal["No"].isin(no_drop)]
+            st.session_state["data_pasien"] = asal.to_dict(orient="records")
+            st.success("✅ Data terpilih dihapus.")
+            st.rerun()
+
+        # === Mekanisme hapus lama (dipertahankan) ===
+        hapus_index = st.number_input("Masukkan nomor pasien yang ingin dihapus", min_value=1, max_value=len(df_pasien), step=1, key="hapus_index")
         if st.button("🗑️ Hapus Data Pasien"):
             if 1 <= hapus_index <= len(st.session_state["data_pasien"]):
                 st.session_state["data_pasien"].pop(hapus_index - 1)
@@ -770,18 +881,25 @@ elif page == "💡 Tentang Pneumonia":
     st.subheader("🎥 Video Edukasi Pneumonia")
     st.video("https://youtu.be/EdLDuXW8jy4?si=_BOtAthwzR9O2Tvh")
     st.markdown("---")
-    st.subheader("📚 Kemenkes Republik Indonesia")
-    st.markdown("""
-    🔹 **Panduan Nasional Pencegahan dan Pengendalian Pneumonia 2023-2030**
-    📄 [Klik di sini untuk membaca dokumen](https://p2p.kemkes.go.id/wp-content/uploads/2023/12/NAPPD_2023-2030-compressed.pdf)
-    """)
-    st.markdown("---")
     st.subheader("📷 Contoh Citra Rontgen Pneumonia vs Normal")
     col1, col2 = st.columns(2)
     with col1:
         st.image("images/pneumonia.jpeg", width=300, caption="🫁 Rontgen Pasien Pneumonia")
     with col2:
         st.image("images/normal.jpg", width=300, caption="🫀 Rontgen Paru-Paru Normal")
+
+    # Sumber tambahan
+    st.markdown("---")
+    st.subheader("📚 Sumber Informasi")
+    st.markdown("""
+- Kemenkes RI – **Panduan Nasional Pencegahan dan Pengendalian Pneumonia 2023–2030**  
+  📄 https://p2p.kemkes.go.id/wp-content/uploads/2023/12/NAPPD_2023-2030-compressed.pdf
+- World Health Organization (WHO) – Pneumonia Overview  
+  🌐 https://www.who.int/health-topics/pneumonia
+- CDC – Clinical Overview of Pneumonia  
+  🌐 https://www.cdc.gov/pneumonia/
+""")
+    st.caption("Catatan: Informasi di atas bersifat edukatif dan tidak menggantikan diagnosis dokter.")
     card_end()
 
     if st.button("🔙 Kembali ke Dashboard"):
@@ -791,8 +909,9 @@ elif page == "💡 Tentang Pneumonia":
 
 # ================== Halaman Pengobatan ==================
 elif page == "💊 Pengobatan":
-    st.title("💊 Pengobatan dan Pencegahan Pneumonia")
+    hero("💊 Pengobatan dan Pencegahan Pneumonia", "Ringkas, jelas, dan mudah dipraktikkan.")
 
+    card_start()
     st.subheader("🩺 Saran Pengobatan:")
     st.markdown("""
     - Menggunakan antibiotik sesuai resep dokter
@@ -800,7 +919,6 @@ elif page == "💊 Pengobatan":
     - Gunakan oksigen jika mengalami kesulitan bernapas
     - Rawat inap di rumah sakit untuk kasus yang parah
     """)
-
     st.subheader("🛡️ Pencegahan Pneumonia:")
     st.markdown("""
     - Vaksinasi pneumonia dan influenza
@@ -808,16 +926,20 @@ elif page == "💊 Pengobatan":
     - Menghindari asap rokok
     - Menjaga daya tahan tubuh dengan pola hidup sehat
     """)
+    st.markdown("---")
+    st.subheader("📚 Sumber Informasi")
+    st.markdown("""
+- Kemenkes RI – **Panduan Nasional Pencegahan dan Pengendalian Pneumonia 2023–2030**  
+  📄 https://p2p.kemkes.go.id/wp-content/uploads/2023/12/NAPPD_2023-2030-compressed.pdf
+- WHO & CDC guideline ringkas pencegahan pneumonia.  
+  🌐 https://www.who.int/health-topics/pneumonia • https://www.cdc.gov/pneumonia/
+""")
+    card_end()
 
-    # 🔹 Tombol kembali ke Dashboard
     if st.button("🔙 Kembali ke Dashboard"):
-        st.session_state["page"] = "🏠 Home"
-        st.rerun()
-
-    # Tombol kembali ke halaman awal
+        st.session_state["page"] = "🏠 Home"; st.rerun()
     if st.button("🔙 Kembali ke Halaman Awal"):
-        st.session_state["started"] = False  # Reset halaman awal
-        st.rerun()  # Menggunakan st.rerun() untuk refresh halaman
+        st.session_state["started"] = False; st.rerun()
 
 # ================== Halaman Konsultasi & Pelayanan Kesehatan ==================
 elif page == "👨‍⚕️ Konsultasi & Pelayanan Kesehatan":
@@ -945,3 +1067,21 @@ elif page == "👨‍⚕️ Konsultasi & Pelayanan Kesehatan":
         st.session_state["page"] = "🏠 Home"; st.rerun()
     if st.button("🔙 Kembali ke Halaman Awal"):
         st.session_state["started"] = False; st.rerun()
+
+# ================== Halaman Tentang Model ==================
+elif page == "🧪 Tentang Model":
+    hero("🧪 Tentang Model", "Detail ringkas model, data latih, metrik, dan keterbatasan.")
+    card_start()
+    st.markdown("""
+**Arsitektur:** CNN (input 224×224), PCA untuk reduksi fitur, LDA untuk klasifikasi tambahan.  
+**Ekstraksi Fitur:** Mengambil vektor fitur dari layer sebelum output (Flatten/GAP), lalu diproyeksikan oleh PCA dan dinilai oleh LDA.  
+**Data latih/validasi:** (lengkapi sesuai dataset Anda: jumlah gambar, sumber, proporsi train/val).  
+**Metrik (contoh):** Akurasi 0.93 • Precision 0.92 • Recall 0.94 • ROC-AUC 0.96.  
+**Keterbatasan:** Bukan alat medis; kualitas gambar, artefak, komorbid, dan domain-shift dapat menurunkan akurasi.  
+**Keamanan data:** Gambar yang diunggah dipakai untuk prediksi dalam sesi ini saja. Hasil bersifat edukatif dan bukan diagnosis final.
+""")
+    card_end()
+
+# ====== Privasi (footer singkat) ======
+st.caption("🔒 Privasi: Data yang diunggah hanya dipakai untuk proses prediksi dalam sesi ini. "
+           "Hasil bersifat edukatif dan **bukan** pengganti diagnosis dokter.")
