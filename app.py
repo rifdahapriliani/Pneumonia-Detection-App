@@ -1,10 +1,12 @@
-import streamlit as st
-import pickle
-import numpy as np
-# >>> TARUH DI PALING ATAS FILE, sebelum import tensorflow <<<
+# ================== ENV (HARUS DI PALING ATAS, sebelum import tensorflow) ==================
 import os
 os.environ["KERAS_BACKEND"] = "tensorflow"
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
+# ===========================================================================================
+
+import streamlit as st
+import pickle
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import load_model, Model
 from PIL import Image, ImageEnhance
@@ -15,7 +17,6 @@ from tensorflow.keras import backend as K
 import re
 import io, time
 from datetime import datetime
-import os
 from huggingface_hub import hf_hub_download
 
 
