@@ -426,7 +426,9 @@ def load_all_models():
         pca_obj = pickle.load(pca_file)
     with open("lda_model.pkl", "rb") as lda_file:
         lda_obj = pickle.load(lda_file)
-    cnn_obj = load_model("cnn_model.h5")
+
+    ensure_cnn_model_local()
+    cnn_obj = load_model(LOCAL_MODEL_PATH, compile=False)  # aman untuk Keras 3/TF 2.20
     return pca_obj, lda_obj, cnn_obj
 
 try:
