@@ -1,14 +1,11 @@
 streamlit
-numpy<2
+tensorflow==2.20.0
+keras>=3
+huggingface_hub
 pillow
+numpy
 pandas
 matplotlib
-scikit-learn==1.3.2
-huggingface_hub>=0.20.3
-fpdf2
-
-# TensorFlow + TF-Keras 2.x
-tensorflow==2.15.0
-
-# (opsional, tetapi aman di banyak host)
-tf-keras==2.15.0
+seaborn
+scikit-learn
+fpdf
