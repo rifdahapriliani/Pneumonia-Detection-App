@@ -999,22 +999,32 @@ elif page == "👨‍⚕️ Konsultasi & Pelayanan Kesehatan":
     import urllib.parse as up
 
     st.subheader("🏥 Temukan Layanan Kesehatan Terdekat")
-    kota = st.text_input("Lokasi kamu (kota/kabupaten)", "")
-    q_rs  = f"rumah sakit paru terdekat {kota}".strip()
-    q_igd = f"igd rumah sakit terdekat {kota}".strip()
 
-    url_rs  = "https://www.google.com/maps/search/" + up.quote(q_rs)
-    url_igd = "https://www.google.com/maps/search/" + up.quote(q_igd)
+    # Form: enter untuk submit
+    with st.form("maps_form"):
+        kota = st.text_input("Lokasi kamu (kota/kabupaten)", "")
+        submitted = st.form_submit_button("⏎ Enter / Tampilkan tautan")
 
-    st.markdown(f"[🔎 Buka di Google Maps — {q_rs}]({url_rs})")
-    st.markdown(f"[🚑 IGD terdekat — {q_igd}]({url_igd})")
-    st.caption("Catatan: tautan membuka hasil pencarian Maps sesuai kota yang kamu isi.")
+    if submitted:
+        q_rs  = f"rumah sakit paru terdekat {kota}".strip()
+        q_igd = f"igd rumah sakit terdekat {kota}".strip()
+
+        url_rs  = "https://www.google.com/maps/search/" + up.quote(q_rs)
+        url_igd = "https://www.google.com/maps/search/" + up.quote(q_igd)
+
+        st.markdown(f"[🔎 Buka di Google Maps — {q_rs}]({url_rs})")
+        st.markdown(f"[🚑 IGD terdekat — {q_igd}]({url_igd})")
+        st.caption("Catatan: tautan membuka hasil pencarian Maps sesuai kota yang kamu isi.")
+    else:
+        st.info("Ketik kota/kabupaten lalu tekan **Enter** atau klik tombol di atas untuk menampilkan tautan.")
+
     card_end()
 
     if st.button("🔙 Kembali ke Dashboard"):
         st.session_state["page"] = "🏠 Home"; st.rerun()
     if st.button("🔙 Kembali ke Halaman Awal"):
         st.session_state["started"] = False; st.rerun()
+
 
 # ================== Halaman Tentang Model ==================
 elif page == "🧪 Tentang Model":
@@ -1029,6 +1039,11 @@ elif page == "🧪 Tentang Model":
 **Keamanan data:** Gambar yang diunggah dipakai untuk prediksi dalam sesi ini saja. Hasil bersifat edukatif dan bukan diagnosis final.
 """)
     card_end()
+
+    if st.button("🔙 Kembali ke Dashboard"):
+        st.session_state["page"] = "🏠 Home"; st.rerun()
+    if st.button("🔙 Kembali ke Halaman Awal"):
+        st.session_state["started"] = False; st.rerun()
 
 # ====== Privasi (footer singkat) ======
 st.caption("🔒 Privasi: Data yang diunggah hanya dipakai untuk proses prediksi dalam sesi ini. "
