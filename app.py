@@ -744,7 +744,7 @@ elif page == "🔍 Diagnosa":
 
                     st.subheader("🩺 Hasil Prediksi:")
                     st.write(f"📊 **CNN Model:** {cnn_result}")
-                    st.write(f"📊 **PCA-LDA Model:** {'✅ Normal' if lda_prediction[0][0] > thr else '⚠️ Pneumonia'}")
+                    st.write(f"📊 **PCA-LDA Model:** {'✅ Normal' if lda_prediction[0][1] > thr else '⚠️ Pneumonia'}")
                     st.write(f"📈 **Probabilitas CNN:** {prob_pneumonia:.2f}%")
                     st.write(f"📈 **Probabilitas LDA:** {prob_lda:.2f}%")
                     st.caption(f"⏱️ {dur:.2f} detik • threshold {thr:.2f}")
