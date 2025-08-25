@@ -311,7 +311,26 @@ if light_theme:
   """, unsafe_allow_html=True)
 
 # ===== Credit floating (muncul di semua halaman) =====
-st.markdown('<div class="app-credit">Design & developed by <b>Rifdah Apriliani</b></div>', unsafe_allow_html=True)
+st.markdown(
+    """
+    <style>
+    .footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background-color: transparent;
+        text-align: center;
+        font-size: 14px;
+        color: gray;
+        padding: 10px;
+    }
+    </style>
+    <div class="footer">
+        Design & developed by <b>Rifdah Apriliani</b>
+    </div>
+    """,
+    unsafe_allow_html=True)
 
 # ===== Helpers (UI only) =====
 def hero(title:str, subtitle:str=""):
