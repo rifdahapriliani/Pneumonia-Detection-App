@@ -933,9 +933,9 @@ elif page == "💡 Tentang Pneumonia":
     st.subheader("📷 Contoh Citra Rontgen Pneumonia vs Normal")
     col1, col2 = st.columns(2)
     with col1:
-        st.image("images/pneumonia.jpeg", width=300, caption="🫁 Rontgen Pasien Pneumonia")
+        st.image("pneumonia.jpeg", width=300, caption="🫁 Rontgen Pasien Pneumonia")
     with col2:
-        st.image("images/normal.jpg", width=300, caption="🫀 Rontgen Paru-Paru Normal")
+        st.image("normal.jpg", width=300, caption="🫀 Rontgen Paru-Paru Normal")
 
     # Sumber tambahan
     st.markdown("---")
