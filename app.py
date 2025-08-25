@@ -311,41 +311,22 @@ if light_theme:
   """, unsafe_allow_html=True)
 
 # ===== Credit floating (muncul di semua halaman) =====
-st.markdown(
-    """
-    <style>
-    .footer-badge {
-        position: fixed;
-        left: 15px;    
-        bottom: 15px;  
-        background-color: rgba(var(--background-color-rgb), 0.7); 
-        color: var(--text-color);
-        padding: 6px 14px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-family: "Segoe UI", Arial, sans-serif;
-        box-shadow: 0px 2px 8px rgba(0,0,0,0.2);
-        z-index: 100;
-        backdrop-filter: blur(6px); 
-        white-space: nowrap;
-    }
-
-    @media (max-width: 768px) {
-        .footer-badge {
-            font-size: 11px;
-            padding: 5px 12px;
-            bottom: 12px; 
-            left: 12px;
-        }
-    }
-    </style>
-
-    <div class="footer-badge">
-        by <b>Rifdah Apriliani</b>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+.footer-badge {
+    position: fixed;
+    left: 50%;   /* taruh di tengah */
+    bottom: 15px;  
+    transform: translateX(-50%); /* biar beneran center */
+    background-color: rgba(var(--background-color-rgb), 0.7); 
+    color: var(--text-color);
+    padding: 6px 14px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-family: "Segoe UI", Arial, sans-serif;
+    box-shadow: 0px 2px 8px rgba(0,0,0,0.2);
+    z-index: 100;
+    backdrop-filter: blur(6px); 
+    white-space: nowrap;
+}
 
 # ===== Helpers (UI only) =====
 def hero(title:str, subtitle:str=""):
