@@ -314,7 +314,7 @@ if light_theme:
 st.markdown(
     """
     <style>
-    .footer {
+    .footer-badge {
         position: fixed;
         left: 50%;
         bottom: 15px;
@@ -323,10 +323,9 @@ st.markdown(
         color: white;
         padding: 8px 18px;
         border-radius: 20px;
-        text-align: center;
         font-size: 13px;
         font-family: Arial, sans-serif;
-        box-shadow: 0px 2px 8px tgba(0,0,0,0.3);
+        box-shadow: 0px 2px 8px rgba(0,0,0,0.3);
         z-index: 100;
         opacity: 0.9;
     }
