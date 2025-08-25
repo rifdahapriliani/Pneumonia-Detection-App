@@ -316,32 +316,32 @@ st.markdown(
     <style>
     .footer-badge {
         position: fixed;
-        left: 50%;
-        bottom: 60px; /* biar gak ketabrak tombol Streamlit */
-        transform: translateX(-50%);
-        background-color: rgba( var(--background-color-rgb), 0.7 ); /* transparan sesuai theme */
+        left: 15px;    
+        bottom: 15px;  
+        background-color: rgba(var(--background-color-rgb), 0.7); 
         color: var(--text-color);
         padding: 6px 14px;
-        border-radius: 20px;
+        border-radius: 12px;
         font-size: 12px;
         font-family: "Segoe UI", Arial, sans-serif;
         box-shadow: 0px 2px 8px rgba(0,0,0,0.2);
         z-index: 100;
-        backdrop-filter: blur(6px); /* efek kaca */
+        backdrop-filter: blur(6px); 
         white-space: nowrap;
     }
 
     @media (max-width: 768px) {
         .footer-badge {
-            bottom: 80px; /* naik lagi kalau di HP */
             font-size: 11px;
             padding: 5px 12px;
+            bottom: 12px; 
+            left: 12px;
         }
     }
     </style>
 
     <div class="footer-badge">
-        🚀 Design & Developed by <b>Rifdah Apriliani</b>
+        by <b>Rifdah Apriliani</b>
     </div>
     """,
     unsafe_allow_html=True
