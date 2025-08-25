@@ -315,28 +315,30 @@ st.markdown(
     """
     <style>
     .footer-badge {
-    position: fixed;
-    left: 50%;   /* taruh di tengah */
-    bottom: 15px;  
-    transform: translateX(-50%); /* biar beneran center */
-    background-color: rgba(var(--background-color-rgb), 0.7); 
-    color: var(--text-color);
-    padding: 6px 14px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-family: "Segoe UI", Arial, sans-serif;
-    box-shadow: 0px 2px 8px rgba(0,0,0,0.2);
-    z-index: 100;
-    backdrop-filter: blur(6px); 
-    white-space: nowrap;
-}
+        position: fixed;
+        left: 50%;   /* taruh di tengah */
+        bottom: 15px;  
+        transform: translateX(-50%); /* biar beneran center */
+        background-color: rgba(255, 255, 255, 0.15); /* fallback transparan */
+        color: white;  /* fallback default */
+        padding: 6px 14px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-family: "Segoe UI", Arial, sans-serif;
+        box-shadow: 0px 2px 8px rgba(0,0,0,0.2);
+        z-index: 9999;
+        backdrop-filter: blur(6px); 
+        white-space: nowrap;
+    }
 
     @media (max-width: 768px) {
         .footer-badge {
             font-size: 11px;
             padding: 5px 12px;
             bottom: 12px; 
-            left: 12px;
+            /* tetap center di mobile */
+            left: 50%;
+            transform: translateX(-50%);
         }
     }
     </style>
