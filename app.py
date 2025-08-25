@@ -316,17 +316,22 @@ st.markdown(
     <style>
     .footer {
         position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        background-color: transparent;
+        left: 50%;
+        bottom: 15px;
+        transform: translateX(-50%);
+        background-color: #1e1e1e;
+        color: white;
+        padding: 8px 18px;
+        border-radius: 20px;
         text-align: center;
-        font-size: 14px;
-        color: gray;
-        padding: 10px;
+        font-size: 13px;
+        font-family: Arial, sans-serif;
+        box-shadow: 0px 2px 8px tgba(0,0,0,0.3);
+        z-index: 100;
+        opacity: 0.9;
     }
     </style>
-    <div class="footer">
+    <div class="footer-badge">
         Design & developed by <b>Rifdah Apriliani</b>
     </div>
     """,
