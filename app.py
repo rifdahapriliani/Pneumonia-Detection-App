@@ -311,7 +311,10 @@ if light_theme:
   """, unsafe_allow_html=True)
 
 # ===== Credit floating (muncul di semua halaman) =====
-.footer-badge {
+st.markdown(
+    """
+    <style>
+    .footer-badge {
     position: fixed;
     left: 50%;   /* taruh di tengah */
     bottom: 15px;  
@@ -327,6 +330,24 @@ if light_theme:
     backdrop-filter: blur(6px); 
     white-space: nowrap;
 }
+
+    @media (max-width: 768px) {
+        .footer-badge {
+            font-size: 11px;
+            padding: 5px 12px;
+            bottom: 12px; 
+            left: 12px;
+        }
+    }
+    </style>
+
+    <div class="footer-badge">
+        by <b>Rifdah Apriliani</b>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
 
 # ===== Helpers (UI only) =====
 def hero(title:str, subtitle:str=""):
