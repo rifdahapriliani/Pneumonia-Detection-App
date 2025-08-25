@@ -406,7 +406,7 @@ def overlay_heatmap(pil_img, heatmap, alpha=0.35, cmap_name='jet'):
     colored_img = Image.fromarray(colored).resize(pil_img.size)
     return Image.blend(pil_img.convert("RGB"), colored_img.convert("RGB"), alpha=alpha)
 
-# ===== Placeholder extractor (akan diisi setelah model dimuat)
+# ===== Placeholder extractor ===== #
 feature_extractor = None
 
 def get_vec_for_pca(image_array, pca):
@@ -429,8 +429,7 @@ def get_vec_for_pca(image_array, pca):
     cnn_feat = feature_extractor.predict(image_array, verbose=0).reshape(1, -1)
     if n_in == cnn_feat.shape[1]:
         return cnn_feat  # PCA dilatih pakai fitur CNN
-
-    # kalau tetap tidak cocok, tampilkan pesan yang jelas
+        
     st.error(
         f"Dimensi fitur PCA yang dilatih ({n_in}) tidak cocok dengan kandidat input "
         f"(raw={raw_vec.shape[1]}, penultimate={cnn_feat.shape[1]}). "
@@ -440,14 +439,12 @@ def get_vec_for_pca(image_array, pca):
 
 # ---- Util: Ekstraktor fitur dari CNN untuk PCA-LDA ----
 def build_feature_extractor(model):
-    # coba nama layer umum
     for lname in ["global_average_pooling2d", "avg_pool", "flatten"]:
         try:
             layer = model.get_layer(lname)
             return Model(model.input, layer.output)
         except Exception:
             pass
-    # fallback: cari layer sebelum output yang berdimensi > 1
     for layer in reversed(model.layers[:-1]):
         try:
             shp = layer.output_shape
@@ -459,7 +456,7 @@ def build_feature_extractor(model):
                 return Model(model.input, layer.output)
             except Exception:
                 continue
-    # fallback terakhir: pakai layer -2
+                
     return Model(model.input, model.layers[-2].output)
 
 # ================== Halaman Selamat Datang ==================
@@ -641,9 +638,8 @@ elif page == "🔍 Diagnosa":
                 result = "⚠️ Pneumonia" if pred[0][0] > thr else "✅ Normal"
 
                 # LDA berbasis fitur
-                feat = feature_extractor.predict(img_array, verbose=0)
-                feat_flat = feat.reshape(1, -1) if len(feat.shape) > 2 else feat
-                pca_feat = pca.transform(feat_flat)
+                vec_for_pca = get_vec_for_pca(img_array, pca)
+                pca_feat = pca.transform(vec_for_pca)
                 lda_pred = lda.predict_proba(pca_feat)
                 prob_lda = float(lda_pred[0][1]) * 100
 
@@ -849,7 +845,6 @@ elif page == "📊 Data Pasien":
                            "data_pasien.xlsx",
                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-        # Hapus yang dicentang (fitur tambahan, tanpa menghapus fitur lama)
         to_drop_idx = edited.index[edited["Hapus?"] == True].tolist()
         if to_drop_idx and st.button(f"🗑️ Hapus {len(to_drop_idx)} baris terpilih"):
             # mapping kembali ke session_state berdasarkan "No"
@@ -860,7 +855,6 @@ elif page == "📊 Data Pasien":
             st.success("✅ Data terpilih dihapus.")
             st.rerun()
 
-        # === Mekanisme hapus lama (dipertahankan) ===
         hapus_index = st.number_input("Masukkan nomor pasien yang ingin dihapus", min_value=1, max_value=len(df_pasien), step=1, key="hapus_index")
         if st.button("🗑️ Hapus Data Pasien"):
             if 1 <= hapus_index <= len(st.session_state["data_pasien"]):
@@ -999,124 +993,23 @@ elif page == "💊 Pengobatan":
 # ================== Halaman Konsultasi & Pelayanan Kesehatan ==================
 elif page == "👨‍⚕️ Konsultasi & Pelayanan Kesehatan":
     hero("👨‍⚕️ Konsultasi & Pelayanan Kesehatan",
-         "Jika Anda memiliki pertanyaan atau membutuhkan bantuan medis terkait Pneumonia, silakan datang ke fasilitas terdekat di Kota Palu!")
+         "Jika Anda memiliki pertanyaan atau membutuhkan bantuan medis terkait Pneumonia, cari layanan terdekat sesuai kota Anda.")
 
     card_start()
-    st.subheader("🏥 Rumah Sakit Rujukan Terdekat")
+    import urllib.parse as up
 
-    # ==== Grid Cards untuk daftar RS (rapi & responsif) ====
-    st.markdown("""
-    <style>
-    .rs-grid{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
-    @media (max-width:1100px){ .rs-grid{ grid-template-columns:1fr; } }
-    .rs-card{
-      background: var(--card);
-      border: 1px solid rgba(0,0,0,.08);
-      border-radius: 12px;
-      padding: 12px 14px;
-      box-shadow: var(--shadow);
-    }
-    .rs-card h4{ margin:0 0 6px; font-weight:800; color: var(--ink); }
-    .rs-meta{ margin:6px 0 0; line-height:1.55; color: var(--ink-dim); }
-    .rs-actions a{ margin-right:12px; font-weight:700; text-decoration: underline; text-underline-offset: 2px; }
-    </style>
-    """, unsafe_allow_html=True)
+    st.subheader("🏥 Temukan Layanan Kesehatan Terdekat")
+    kota = st.text_input("Lokasi kamu (kota/kabupaten)", "")
+    q_rs  = f"rumah sakit paru terdekat {kota}".strip()
+    q_igd = f"igd rumah sakit terdekat {kota}".strip()
 
-    rumah_sakit = [
-        {"nama": "RSUD Anutapura Palu - Palu",
-         "alamat": "Jl. Kangkung No.1, Donggala Kodi, Kec. Ulujadi, Kota Palu, Sulawesi Tengah",
-         "tel": ["(0451) 460570"],
-         "website": "https://rsapkotapalu.com/",
-         "maps": "https://maps.app.goo.gl/U55pJgjEswcik45n7"},
-        {"nama": "RSUD Undata Palu - Palu",
-         "alamat": "Jl. RE Martadinata, Tondo, Kec. Mantikulore, Kota Palu, Sulawesi Tengah",
-         "tel": ["(0451) 4131446", "082195155175"],
-         "website": "https://rsudundata.sultengprov.go.id/",
-         "maps": "https://maps.app.goo.gl/wKq2waeqjJ5B6Sya7"},
-        {"nama": "RSU Samaritan Palu - Palu",
-         "alamat": "Jl. Towua No.77",
-         "tel": ["(0451) 4010925"],
-         "website": "https://www.samaritan.id/",
-         "maps": "https://maps.app.goo.gl/uUsVK2xtvRtr9W5F7"},
-        {"nama": "RSU Budi Agung - Palu",
-         "alamat": "Jl. Maluku No.44, Lolu Selatan, Kec. Palu Timur, Kota Palu, Sulawesi Tengah",
-         "tel": ["(0451) 421360"],
-         "website": "https://www.rsbapalu.com/",
-         "maps": "https://maps.app.goo.gl/o6DiRnjzuMf1tAvu5"},
-        {"nama": "RSUD Madani - Palu",
-         "alamat": "Jl. Thalua Kochi No.11, Mamboro, Kec. Palu Utara, Kota Palu, Sulawesi Tengah",
-         "tel": ["(+62) 451-4916058"],
-         "website": "https://rsmadani.sultengprov.go.id/",
-         "maps": "https://maps.app.goo.gl/1jYgP5S5tP6tCYZ69"},
-        {"nama": "RSU Sis Al-Jufri - Palu",
-         "alamat": "Jl. Sis Aljufri No.72, Siranindi, Kec. Palu Barat, Kota Palu, Sulawesi Tengah",
-         "tel": ["(0451) 456925"],
-         "website": None,
-         "maps": "https://maps.app.goo.gl/mSwHdJkR2veceUCJ9"},
-        {"nama": "RSU Wirabuana - Palu",
-         "alamat": "Jl. Sisingamangaraja No.4, Palu, Sulawesi Tengah",
-         "tel": ["(0451) 4215757"],
-         "website": None,
-         "maps": "https://maps.app.goo.gl/8mo7g1Ei8z3yCcuq8"},
-        {"nama": "RSU Bhayangkara - Palu",
-         "alamat": "Jl. Dr. Soeharso Lrg.III No.2, Besusu Barat, Kec. Palu Timur, Kota Palu, Sulawesi Tengah",
-         "tel": ["(0451) 429714"],
-         "website": None,
-         "maps": "https://maps.app.goo.gl/vfTqWPMu2tJNb7KQ7"},
-        {"nama": "RSU Woodward (BK) - Palu",
-         "alamat": "Jl. Woodward No.1, Lolu Selatan, Kec. Palu Timur, Kota Palu, Sulawesi Tengah",
-         "tel": ["(0451) 4027430"],
-         "website": None,
-         "maps": "https://maps.app.goo.gl/nfeXrcAgUrSprJET7"},
-    ]
+    url_rs  = "https://www.google.com/maps/search/" + up.quote(q_rs)
+    url_igd = "https://www.google.com/maps/search/" + up.quote(q_igd)
 
-    st.markdown('<div class="rs-grid">', unsafe_allow_html=True)
-    for rs in rumah_sakit:
-        tel_links = " / ".join(
-            [f'<a href="tel:{re.sub(r"[^0-9+]", "", t)}">{t}</a>' for t in rs["tel"]]
-        )
-        website_html = f'<a href="{rs["website"]}" target="_blank">Website</a>' if rs.get("website") else ""
-        maps_html = f'<a href="{rs["maps"]}" target="_blank">Buka di Maps</a>' if rs.get("maps") else ""
-        sep = " · " if website_html and maps_html else ""
-        st.markdown(
-            f'''
-            <div class="rs-card">
-              <h4>🏥 {rs["nama"]}</h4>
-              <div class="rs-meta">📍 {rs["alamat"]}</div>
-              <div class="rs-meta">📞 {tel_links}</div>
-              <div class="rs-actions">{website_html}{sep}{maps_html}</div>
-            </div>
-            ''',
-            unsafe_allow_html=True
-        )
-    st.markdown('</div>', unsafe_allow_html=True)
-    # ==== akhir grid RS ====
-
-    st.markdown("---")
-    st.subheader("👨‍⚕️ Dokter Spesialis Paru-Paru")
-
-    dokter_list = [
-        {"nama": "Dr. H. Abdullah Ammarie, SpPD, FINASIM",
-        "alamat": "Jl. Suharso, No.14, Besusu Barat, Kec. Palu Timur, Kota Palu, Sulawesi Tengah",
-        "kontak": "[(0451) 421270](tel:0451421270)"},
-        {"nama": "Dr. Wirjadi Ali",
-        "alamat": "Jl. Kimaja, No.74, Donggala Kodi, Kec. Ulujadi, Kota Palu, Sulawesi Tengah",
-        "kontak": "[(0451) 425132](tel:0451425132)"},
-        {"nama": "Dr. Anton Sinarli",
-        "alamat": "Jl. Tg. Santigi, No.11, Lolu Selatan, Kec. Palu Selatan, Kota Palu, Sulawesi Tengah",
-        "kontak": "[0812-4222-5225](tel:081242225225)"},
-    ]
-
-    for dokter in dokter_list:
-        st.markdown(f"""
-        <div style="border: 1px solid #ddd; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
-            <p style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">🩺 {dokter['nama']}</p>
-            <p style="font-size: 16px; margin: 5px 0;">📍 <b>Alamat:</b> {dokter['alamat']}</p>
-            <p style="font-size: 16px; margin: 5px 0;">📞 <b>Kontak:</b> {dokter['kontak']}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("---")
+    st.markdown(f"[🔎 Buka di Google Maps — {q_rs}]({url_rs})")
+    st.markdown(f"[🚑 IGD terdekat — {q_igd}]({url_igd})")
+    st.caption("Catatan: tautan membuka hasil pencarian Maps sesuai kota yang kamu isi.")
+    card_end()
 
     if st.button("🔙 Kembali ke Dashboard"):
         st.session_state["page"] = "🏠 Home"; st.rerun()
