@@ -317,24 +317,35 @@ st.markdown(
     .footer-badge {
         position: fixed;
         left: 50%;
-        bottom: 15px;
+        bottom: 60px; /* biar gak ketabrak tombol Streamlit */
         transform: translateX(-50%);
-        background-color: #1e1e1e;
-        color: white;
-        padding: 8px 18px;
+        background-color: rgba( var(--background-color-rgb), 0.7 ); /* transparan sesuai theme */
+        color: var(--text-color);
+        padding: 6px 14px;
         border-radius: 20px;
-        font-size: 13px;
-        font-family: Arial, sans-serif;
-        box-shadow: 0px 2px 8px rgba(0,0,0,0.3);
+        font-size: 12px;
+        font-family: "Segoe UI", Arial, sans-serif;
+        box-shadow: 0px 2px 8px rgba(0,0,0,0.2);
         z-index: 100;
-        opacity: 0.9;
+        backdrop-filter: blur(6px); /* efek kaca */
+        white-space: nowrap;
+    }
+
+    @media (max-width: 768px) {
+        .footer-badge {
+            bottom: 80px; /* naik lagi kalau di HP */
+            font-size: 11px;
+            padding: 5px 12px;
+        }
     }
     </style>
+
     <div class="footer-badge">
-        Design & developed by <b>Rifdah Apriliani</b>
+        🚀 Design & Developed by <b>Rifdah Apriliani</b>
     </div>
     """,
-    unsafe_allow_html=True)
+    unsafe_allow_html=True
+)
 
 # ===== Helpers (UI only) =====
 def hero(title:str, subtitle:str=""):
